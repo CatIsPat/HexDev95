@@ -1,0 +1,5 @@
+{
+  "name": "Flash Image Studio",
+  "description": "A creative studio for generating and editing images using Gemini 2.5 Flash Image.",
+  "requestFramePermissions": []
+}
