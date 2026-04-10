@@ -5,41 +5,67 @@ export interface GenerateImageResult {
 
 export type AspectRatio = "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
 
+// ============================================================================
+// 🔑 API KEYS SECTION (CLIENT-SIDE)
+// Add your NVIDIA API keys here. The app will try them in order.
+// ============================================================================
+const NVIDIA_API_KEYS = [
+  "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", // Key 1
+  // "YOUR_SECOND_API_KEY_HERE",
+];
+
+// We use a local proxy in development (Vite) and a rewrite rule in production (Netlify _redirects).
+// This completely bypasses CORS issues without relying on flaky third-party proxies.
+const TARGET_URL = "/api/nvidia/genai/stabilityai/stable-diffusion-3-medium";
+
 /**
- * Generates an image from a text prompt using local API proxy to NVIDIA API.
+ * Generates an image from a text prompt directly from the browser using a proxy.
  */
 export async function generateImage(prompt: string, aspectRatio: AspectRatio = "1:1"): Promise<GenerateImageResult> {
-  try {
-    const res = await fetch("/api/generate-image", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        prompt: prompt,
-        aspectRatio: aspectRatio
-      })
-    });
+  let lastError = null;
+  let successData = null;
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(errData.error || `API Error: ${res.status}`);
-    }
-
-    const data = await res.json();
+  for (let i = 0; i < NVIDIA_API_KEYS.length; i++) {
+    const apiKey = NVIDIA_API_KEYS[i];
     
-    if (data.image) {
-      // The API returns base64 string directly in data.image
-      return {
-        imageUrl: `data:image/jpeg;base64,${data.image}`,
-        text: null
-      };
+    try {
+      const res = await fetch(TARGET_URL, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          prompt: prompt,
+          aspect_ratio: aspectRatio
+        })
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn(`⚠️ Key ${i + 1} failed with status ${res.status}: ${errText}`);
+        lastError = { status: res.status, text: errText };
+        continue; // Try next key
+      }
+
+      successData = await res.json();
+      break; // Success! Exit the loop
+      
+    } catch (fetchError) {
+      console.warn(`⚠️ Key ${i + 1} encountered a network error:`, fetchError);
+      lastError = { status: 500, text: String(fetchError) };
+      continue; // Try next key
     }
-
-    return { imageUrl: null, text: null };
-  } catch (error) {
-    console.error("Error generating image with NVIDIA API:", error);
-    throw error;
   }
-}
 
+  if (successData && successData.image) {
+    return {
+      imageUrl: `data:image/jpeg;base64,${successData.image}`,
+      text: null
+    };
+  }
+
+  console.error("❌ All API keys failed. Last error:", lastError);
+  throw new Error(lastError?.text || "Failed to generate image. All API keys failed or network error.");
+}
