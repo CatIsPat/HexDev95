@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sparkles, Loader2, Image as ImageIcon, Type, Zap, Settings2, RefreshCw, Home as HomeIcon } from 'lucide-react';
+import { Sparkles, Loader2, Zap, Settings2, RefreshCw, Home as HomeIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateImage, editImage, GenerateImageResult, AspectRatio } from '../services/gemini';
-import { ImageUploader } from '../components/ImageUploader';
+import { generateImage, GenerateImageResult, AspectRatio } from '../services/gemini';
 import { GeneratedImage } from '../components/GeneratedImage';
 import { FullScreenViewer } from '../components/FullScreenViewer';
 
@@ -11,8 +10,6 @@ interface GeneratedItem {
   imageUrl: string;
   prompt: string;
 }
-
-type Mode = 'text-to-image' | 'image-to-image';
 
 const ASPECT_RATIOS: { label: string; value: AspectRatio; width: string; height: string }[] = [
   { label: 'Square', value: '1:1', width: 'w-6', height: 'h-6' },
@@ -27,11 +24,8 @@ interface ImageGenerationProps {
 }
 
 export function ImageGeneration({ onBack }: ImageGenerationProps) {
-  const [mode, setMode] = useState<Mode>('text-to-image');
   const [prompt, setPrompt] = useState('');
   const [activePrompt, setActivePrompt] = useState('');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [selectedMimeType, setSelectedMimeType] = useState<string>('image/png');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [showOptions, setShowOptions] = useState(false);
   
@@ -43,24 +37,10 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
   // Ref for the "load more" sentinel at the bottom
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  // Handle image selection
-  const handleImageSelect = (base64: string, mimeType: string) => {
-    setSelectedImage(base64);
-    setSelectedMimeType(mimeType);
-    setMode('image-to-image');
-  };
-
-  const handleClearImage = () => {
-    setSelectedImage(null);
-    if (mode === 'image-to-image') setMode('text-to-image');
-  };
-
   const handleReset = () => {
     setItems([]);
     setPrompt('');
     setActivePrompt('');
-    setSelectedImage(null);
-    setMode('text-to-image');
     setIsGenerating(false);
     setIsInfiniteLoading(false);
   };
@@ -75,11 +55,7 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
     try {
       // Generate 2 images per batch to fill the row
       const promises = [1, 2].map(() => {
-        if (mode === 'image-to-image' && selectedImage) {
-          return editImage(selectedImage, promptText, selectedMimeType);
-        } else {
-          return generateImage(promptText, aspectRatio);
-        }
+        return generateImage(promptText, aspectRatio);
       });
 
       const results = await Promise.all(promises);
@@ -126,7 +102,7 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
     }
 
     return () => observer.disconnect();
-  }, [activePrompt, isGenerating, isInfiniteLoading, mode, selectedImage, aspectRatio]);
+  }, [activePrompt, isGenerating, isInfiniteLoading, aspectRatio]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-emerald-500/30">
@@ -159,32 +135,6 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Mode Switcher */}
-            <div className="flex bg-white/5 rounded-lg p-1 border border-white/5">
-              <button
-                onClick={() => setMode('text-to-image')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
-                  mode === 'text-to-image' 
-                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' 
-                    : 'text-white/40 hover:text-white/80'
-                }`}
-              >
-                <Type size={12} />
-                Text
-              </button>
-              <button
-                onClick={() => setMode('image-to-image')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2 ${
-                  mode === 'image-to-image' 
-                    ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20' 
-                    : 'text-white/40 hover:text-white/80'
-                }`}
-              >
-                <ImageIcon size={12} />
-                Image
-              </button>
-            </div>
-            
             {/* Options Toggle */}
             <button
               onClick={() => setShowOptions(!showOptions)}
@@ -235,29 +185,12 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
 
         {/* Input Area */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <AnimatePresence mode="wait">
-            {mode === 'image-to-image' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <ImageUploader 
-                  onImageSelect={handleImageSelect}
-                  selectedImage={selectedImage}
-                  onClear={handleClearImage}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           <div className="relative group">
             <input
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={mode === 'image-to-image' ? "Describe changes (e.g., 'make it cyberpunk')..." : "Imagine something..."}
+              placeholder="Imagine something..."
               className="w-full bg-[#111] border border-white/10 rounded-2xl py-4 pl-5 pr-14 text-white placeholder:text-white/20 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all"
             />
             <button
