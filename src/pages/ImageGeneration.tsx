@@ -28,6 +28,7 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
   const [activePrompt, setActivePrompt] = useState('');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [showOptions, setShowOptions] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   const [items, setItems] = useState<GeneratedItem[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -43,6 +44,7 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
     setActivePrompt('');
     setIsGenerating(false);
     setIsInfiniteLoading(false);
+    setError(null);
   };
 
   // Generation logic
@@ -51,6 +53,7 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
     
     const loadingStateSetter = isInitial ? setIsGenerating : setIsInfiniteLoading;
     loadingStateSetter(true);
+    setError(null);
 
     try {
       // Generate 2 images per batch to fill the row
@@ -69,8 +72,9 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
         }));
 
       setItems(prev => isInitial ? newItems : [...prev, ...newItems]);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Generation failed", err);
+      setError(err.message || "Failed to generate images. Please check your API keys.");
     } finally {
       loadingStateSetter(false);
     }
@@ -90,7 +94,7 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && activePrompt && !isGenerating && !isInfiniteLoading) {
+        if (entries[0].isIntersecting && activePrompt && !isGenerating && !isInfiniteLoading && !error) {
           generateBatch(activePrompt, false);
         }
       },
@@ -102,7 +106,7 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
     }
 
     return () => observer.disconnect();
-  }, [activePrompt, isGenerating, isInfiniteLoading, aspectRatio]);
+  }, [activePrompt, isGenerating, isInfiniteLoading, aspectRatio, error]);
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-emerald-500/30">
@@ -237,7 +241,19 @@ export function ImageGeneration({ onBack }: ImageGenerationProps) {
         {/* Sentinel */}
         <div ref={loadMoreRef} className="h-10 w-full" />
         
-        {!isGenerating && !isInfiniteLoading && items.length > 0 && (
+        {error && (
+          <div className="text-center py-8">
+            <p className="text-red-400 text-sm mb-4">{error}</p>
+            <button 
+              onClick={() => generateBatch(activePrompt, false)}
+              className="px-6 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+
+        {!isGenerating && !isInfiniteLoading && !error && items.length > 0 && (
           <div className="text-center py-8 text-white/20 text-xs">Scroll for more</div>
         )}
       </div>
