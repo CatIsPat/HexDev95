@@ -1,11 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize the client
-// Note: In a real production app, you might want to proxy this through a backend
-// if you were using a custom API key, but for this environment, the key is injected safely.
+// Initialize the Gemini client for image-to-image
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const GEMINI_MODEL_NAME = "gemini-2.5-flash-image";
 
-const MODEL_NAME = "gemini-2.5-flash-image";
+// NVIDIA API Key provided by user
+const NVIDIA_API_KEY = "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";
 
 export interface GenerateImageResult {
   imageUrl: string | null;
@@ -15,31 +15,45 @@ export interface GenerateImageResult {
 export type AspectRatio = "1:1" | "3:4" | "4:3" | "9:16" | "16:9";
 
 /**
- * Generates an image from a text prompt.
+ * Generates an image from a text prompt using local API proxy to NVIDIA API.
  */
 export async function generateImage(prompt: string, aspectRatio: AspectRatio = "1:1"): Promise<GenerateImageResult> {
   try {
-    const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: {
-        parts: [{ text: prompt }],
+    const res = await fetch("/api/generate-image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
       },
-      config: {
-        imageConfig: {
-          aspectRatio: aspectRatio,
-        }
-      }
+      body: JSON.stringify({
+        prompt: prompt,
+        aspectRatio: aspectRatio
+      })
     });
 
-    return processResponse(response);
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(errData.error || `API Error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    
+    if (data.image) {
+      // The API returns base64 string directly in data.image
+      return {
+        imageUrl: `data:image/jpeg;base64,${data.image}`,
+        text: null
+      };
+    }
+
+    return { imageUrl: null, text: null };
   } catch (error) {
-    console.error("Error generating image:", error);
+    console.error("Error generating image with NVIDIA API:", error);
     throw error;
   }
 }
 
 /**
- * Edits an existing image based on a text prompt.
+ * Edits an existing image based on a text prompt using Gemini.
  */
 export async function editImage(base64Image: string, prompt: string, mimeType: string = "image/png"): Promise<GenerateImageResult> {
   try {
@@ -47,7 +61,7 @@ export async function editImage(base64Image: string, prompt: string, mimeType: s
     const cleanBase64 = base64Image.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
     const response = await ai.models.generateContent({
-      model: MODEL_NAME,
+      model: GEMINI_MODEL_NAME,
       contents: {
         parts: [
           {
@@ -59,37 +73,27 @@ export async function editImage(base64Image: string, prompt: string, mimeType: s
           { text: prompt },
         ],
       },
-      // Note: Aspect ratio is typically preserved for edits, but we could pass it if needed.
-      // For now, we'll leave it out to respect the original image's dimensions.
     });
 
-    return processResponse(response);
-  } catch (error) {
-    console.error("Error editing image:", error);
-    throw error;
-  }
-}
+    let imageUrl: string | null = null;
+    let text: string | null = null;
 
-/**
- * Helper to extract image/text from the response.
- */
-function processResponse(response: any): GenerateImageResult {
-  let imageUrl: string | null = null;
-  let text: string | null = null;
-
-  const candidates = response.candidates;
-  if (candidates && candidates.length > 0) {
-    const parts = candidates[0].content.parts;
-    for (const part of parts) {
-      if (part.inlineData) {
-        const base64EncodeString = part.inlineData.data;
-        // The model returns raw base64, we need to prefix it for the browser
-        imageUrl = `data:image/png;base64,${base64EncodeString}`;
-      } else if (part.text) {
-        text = part.text;
+    const candidates = response.candidates;
+    if (candidates && candidates.length > 0) {
+      const parts = candidates[0].content.parts;
+      for (const part of parts) {
+        if (part.inlineData) {
+          const base64EncodeString = part.inlineData.data;
+          imageUrl = `data:image/png;base64,${base64EncodeString}`;
+        } else if (part.text) {
+          text = part.text;
+        }
       }
     }
-  }
 
-  return { imageUrl, text };
+    return { imageUrl, text };
+  } catch (error) {
+    console.error("Error editing image with Gemini:", error);
+    throw error;
+  }
 }
