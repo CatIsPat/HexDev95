@@ -10,7 +10,7 @@ import path from "path";
 // ============================================================================
 const NVIDIA_API_KEYS = [
   "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", // Key 1 (Primary)
- "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" (Uncomment and replace to use)
+ "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" 
   // "YOUR_THIRD_API_KEY_HERE",  // Key 3 (Uncomment and replace to use)
   // Add as many keys as you need...
 ];
