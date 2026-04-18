@@ -1,9 +1,9 @@
 import React from 'react';
-import { Camera, Video, FileEdit, Zap } from 'lucide-react';
+import { Camera, Video, MessageSquare, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface HomeProps {
-  onNavigate: (page: 'image' | 'video' | 'text') => void;
+  onNavigate: (page: 'image' | 'video' | 'chatbot') => void;
 }
 
 export function Home({ onNavigate }: HomeProps) {
@@ -43,9 +43,9 @@ export function Home({ onNavigate }: HomeProps) {
           gradient="from-cyan-400 via-purple-500 to-pink-500"
         />
         <Card 
-          icon={<FileEdit size={40} className="text-cyan-300" strokeWidth={1.5} />}
-          title="TEXT GENERATION"
-          onClick={() => onNavigate('text')}
+          icon={<MessageSquare size={40} className="text-cyan-300" strokeWidth={1.5} />}
+          title="ChatBot"
+          onClick={() => onNavigate('chatbot')}
           gradient="from-cyan-400 via-purple-500 to-pink-500"
         />
       </main>
