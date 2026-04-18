@@ -128,7 +128,10 @@ export function ChatBot({ onBack }: ChatPageProps) {
           )}
 
           <AnimatePresence initial={false}>
-            {messages.map((msg, idx) => (
+            {messages.map((msg, idx) => {
+              if (msg.role === 'assistant' && msg.content === "") return null;
+              
+              return (
               <motion.div 
                 key={idx}
                 initial={{ opacity: 0, y: 10, scale: 0.98 }}
@@ -155,8 +158,27 @@ export function ChatBot({ onBack }: ChatPageProps) {
                   <p className="whitespace-pre-wrap leading-relaxed text-[15px]">{msg.content}</p>
                 </div>
               </motion.div>
-            ))}
+              );
+            })}
           </AnimatePresence>
+
+          {/* Typing Indicator */}
+          {isLoading && messages.length > 0 && messages[messages.length - 1].content === "" && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex gap-3 max-w-[85%] self-start"
+            >
+              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
+                <Sparkles size={16} />
+              </div>
+              <div className="px-5 py-4 rounded-2xl bg-[#1A1F2B] border border-white/5 rounded-tl-sm shadow-xl flex items-center gap-1.5 h-12">
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </motion.div>
+          )}
 
           <div ref={messagesEndRef} />
         </div>

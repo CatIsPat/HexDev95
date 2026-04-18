@@ -1,6 +1,6 @@
-// We use a local proxy in development (Vite) and a rewrite rule in production (_redirects).
-// This is required because the NVIDIA API does not natively support direct CORS requests from browsers.
-const TARGET_URL = "/api/nvidia-chat/chat/completions";
+// We now use a robust backend Express endpoint to flush Server-Sent Events natively 
+// which avoids Vite proxy buffering issues that cause timeouts and freezing.
+const TARGET_URL = "/api/chat";
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -11,16 +11,11 @@ export async function* streamChatMessage(messages: ChatMessage[], apiKey: string
   const res = await fetch(TARGET_URL, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "Accept": "application/json"
+      "Accept": "text/event-stream"
     },
     body: JSON.stringify({
-      model: "meta/llama-3.1-8b-instruct",
-      messages: messages,
-      max_tokens: 1024,
-      temperature: 0.7,
-      stream: true
+      messages: messages
     }),
     signal
   });

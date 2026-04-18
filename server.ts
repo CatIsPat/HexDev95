@@ -23,6 +23,60 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
 
   // API routes FIRST
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { messages } = req.body;
+      const apiKey = "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";
+      
+      const nvRes = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Accept": "text/event-stream"
+        },
+        body: JSON.stringify({
+          model: "meta/llama-3.1-8b-instruct",
+          messages: messages,
+          max_tokens: 1024,
+          temperature: 0.7,
+          stream: true
+        })
+      });
+
+      if (!nvRes.ok || !nvRes.body) {
+        const errText = await nvRes.text();
+        return res.status(nvRes.status).json({ error: errText });
+      }
+
+      // Set headers for Server-Sent Events
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders(); // flush headers immediately
+
+      const reader = nvRes.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          res.end();
+          break;
+        }
+        // Write the chunk exactly as it comes from NVIDIA directly to the client
+        res.write(decoder.decode(value, { stream: true }));
+        // Flush if the express setup supports it (some compression middlewares need this)
+        if (typeof (res as any).flush === 'function') {
+          (res as any).flush();
+        }
+      }
+    } catch (error) {
+      console.error("Error in chat streaming:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.post("/api/generate-image", async (req, res) => {
     try {
       const { prompt, aspectRatio } = req.body;
