@@ -3,7 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title></title>
+    <title>My Google AI Studio App</title>
+    <script type="module">
+      import { embedWidget } from "https://cdn.jsdelivr.net/npm/agent-embed-widget/dist/agent-embed-widget.es.js";
+
+      embedWidget({
+        type: "full-screen",
+        url: "https://console.thesys.dev/app/SD1BiVsWdcijLETgmjtGA",
+        theme: "light",
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>
