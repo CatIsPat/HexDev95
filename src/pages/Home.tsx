@@ -31,6 +31,12 @@ export function Home({ onNavigate }: HomeProps) {
       {/* Main Content */}
       <main className="flex-1 relative z-10 flex flex-col items-center justify-center p-6 gap-6">
         <Card 
+          icon={<MessageSquare size={40} className="text-cyan-300" strokeWidth={1.5} />}
+          title="ChatBot"
+          onClick={() => onNavigate('chatbot')}
+          gradient="from-cyan-400 via-purple-500 to-pink-500"
+        />
+        <Card 
           icon={<Camera size={40} className="text-cyan-300" strokeWidth={1.5} />}
           title="IMAGE GENERATION"
           onClick={() => onNavigate('image')}
@@ -40,12 +46,6 @@ export function Home({ onNavigate }: HomeProps) {
           icon={<Video size={40} className="text-cyan-300" strokeWidth={1.5} />}
           title="VIDEO GENERATION"
           onClick={() => onNavigate('video')}
-          gradient="from-cyan-400 via-purple-500 to-pink-500"
-        />
-        <Card 
-          icon={<MessageSquare size={40} className="text-cyan-300" strokeWidth={1.5} />}
-          title="ChatBot"
-          onClick={() => onNavigate('chatbot')}
           gradient="from-cyan-400 via-purple-500 to-pink-500"
         />
       </main>

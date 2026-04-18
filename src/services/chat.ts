@@ -7,7 +7,7 @@ export interface ChatMessage {
   content: string;
 }
 
-export async function sendChatMessage(messages: ChatMessage[], apiKey: string): Promise<string> {
+export async function* streamChatMessage(messages: ChatMessage[], apiKey: string, signal?: AbortSignal): AsyncGenerator<string, void, unknown> {
   const res = await fetch(TARGET_URL, {
     method: "POST",
     headers: {
@@ -19,8 +19,10 @@ export async function sendChatMessage(messages: ChatMessage[], apiKey: string): 
       model: "meta/llama-3.1-8b-instruct",
       messages: messages,
       max_tokens: 1024,
-      temperature: 0.7
-    })
+      temperature: 0.7,
+      stream: true
+    }),
+    signal
   });
 
   if (!res.ok) {
@@ -28,6 +30,37 @@ export async function sendChatMessage(messages: ChatMessage[], apiKey: string): 
     throw new Error(`API Error ${res.status}: ${errorText}`);
   }
 
-  const data = await res.json();
-  return data.choices[0].message.content;
+  if (!res.body) throw new Error("No response body");
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || "";
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (!trimmedLine.startsWith('data: ')) continue;
+        if (trimmedLine === 'data: [DONE]') return;
+        
+        try {
+          const data = JSON.parse(trimmedLine.slice(6));
+          if (data.choices && data.choices[0].delta?.content) {
+            yield data.choices[0].delta.content;
+          }
+        } catch (e) {
+          // Ignore partial JSON parsing errors
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }

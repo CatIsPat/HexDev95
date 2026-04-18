@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Send, Sparkles, User, MessageCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { sendChatMessage, ChatMessage } from '../services/chat';
+import { streamChatMessage, ChatMessage } from '../services/chat';
 
 // Hardware / Dark Luxury inspired theme
 const NVIDIA_API_KEY = "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";
@@ -10,7 +10,7 @@ const NVIDIA_API_KEY = "nvapi-BcUvPJfPZ0DLM_qK7xu52N8yeNZXY1nC5FoJK4jOATcqgn0GWm
 // This is not displayed to the user.
 const SYSTEM_PROMPT: ChatMessage = {
   role: "system",
-  content: "Act as my partner, give short and brief replies, you can use emojis and you can tease and flirt a little bit."
+  content: "Act as my partner, give short and brief replies, you can use emojis and you can tease and flirt a little bit. If the user is wrong say it as wrong without hesitation."
 };
 
 interface ChatPageProps {
@@ -22,6 +22,13 @@ export function ChatBot({ onBack }: ChatPageProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -38,20 +45,38 @@ export function ChatBot({ onBack }: ChatPageProps) {
     const userMessage: ChatMessage = { role: "user", content: input.trim() };
     const newHistory = [...messages, userMessage];
     
-    setMessages(newHistory);
+    // Add empty placeholder for the assistant's streaming response
+    setMessages([...newHistory, { role: "assistant", content: "" }]);
     setInput("");
     setIsLoading(true);
 
     try {
       // Send the system prompt along with the conversation history
       const fullConversation = [SYSTEM_PROMPT, ...newHistory];
-      const botResponseText = await sendChatMessage(fullConversation, NVIDIA_API_KEY);
       
-      const botMessage: ChatMessage = { role: "assistant", content: botResponseText };
-      setMessages((prev) => [...prev, botMessage]);
-    } catch (error) {
-      console.error(error);
-      setMessages((prev) => [...prev, { role: "assistant", content: "Oops, something went wrong on my end. Can you try again? 😅" }]);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      abortControllerRef.current = new AbortController();
+
+      const stream = streamChatMessage(fullConversation, NVIDIA_API_KEY, abortControllerRef.current.signal);
+      let currentContent = "";
+      
+      for await (const chunk of stream) {
+        currentContent += chunk;
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1].content = currentContent;
+          return updated;
+        });
+      }
+    } catch (error: any) {
+      if (error.name !== "AbortError") {
+        console.error(error);
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1].content = "Oops, something went wrong on my end. Can you try again? 😅";
+          return updated;
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -133,23 +158,6 @@ export function ChatBot({ onBack }: ChatPageProps) {
             ))}
           </AnimatePresence>
 
-          {/* Typing Indicator */}
-          {isLoading && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex gap-3 max-w-[85%] self-start"
-            >
-              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center">
-                <Sparkles size={16} />
-              </div>
-              <div className="px-5 py-4 rounded-2xl bg-[#1A1F2B] border border-white/5 rounded-tl-sm shadow-xl flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </motion.div>
-          )}
           <div ref={messagesEndRef} />
         </div>
       </div>
