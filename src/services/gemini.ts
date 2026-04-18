@@ -14,7 +14,7 @@ const NVIDIA_API_KEYS = [
   // "YOUR_SECOND_API_KEY_HERE",
 ];
 
-// We use a local proxy in development (Vite) and a rewrite rule in production (Netlify _redirects).
+// We use a local proxy in development (Vite) and a rewrite rule in production (_redirects).
 // This completely bypasses CORS issues without relying on flaky third-party proxies.
 const TARGET_URL = "/api/nvidia/genai/stabilityai/stable-diffusion-3-medium";
 

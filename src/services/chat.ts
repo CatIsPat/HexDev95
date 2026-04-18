@@ -1,5 +1,5 @@
-// We use a local proxy in development (Vite) and a rewrite rule in production (Netlify _redirects).
-// This completely bypasses CORS issues.
+// We use a local proxy in development (Vite) and a rewrite rule in production (_redirects).
+// This is required because the NVIDIA API does not natively support direct CORS requests from browsers.
 const TARGET_URL = "/api/nvidia-chat/chat/completions";
 
 export interface ChatMessage {
