@@ -1,1 +1,2 @@
 /api/nvidia/*  https://ai.api.nvidia.com/v1/:splat  200
+/api/nvidia-chat/*  https://integrate.api.nvidia.com/v1/:splat  200

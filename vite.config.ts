@@ -22,6 +22,11 @@ export default defineConfig(({mode}) => {
           target: 'https://ai.api.nvidia.com/v1',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/nvidia/, '')
+        },
+        '/api/nvidia-chat': {
+          target: 'https://integrate.api.nvidia.com/v1',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/nvidia-chat/, '')
         }
       }
     },
